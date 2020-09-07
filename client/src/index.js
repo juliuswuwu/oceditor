@@ -8,7 +8,6 @@ import { FirebaseAppProvider } from "reactfire";
 let firebaseConfig;
 if (process.env.NODE_ENV === "production") {
   firebaseConfig = require("./config/firebaseConfig").firebaseConfig;
-  console.log(firebaseConfig);
 } else {
   firebaseConfig = require("./config/private/firebaseConfig").firebaseConfig;
 }
