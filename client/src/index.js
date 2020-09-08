@@ -12,7 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     firebaseConfig = require("./config/private/firebaseConfig").firebaseConfig;
   }
+
   console.log(firebaseConfig);
+  console.log(process.env);
+  console.log(process.env.NODE_ENV);
 
   ReactDOM.render(
     <React.StrictMode>
