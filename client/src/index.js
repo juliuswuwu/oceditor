@@ -13,10 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
     firebaseConfig = require("./config/private/firebaseConfig").firebaseConfig;
   }
 
-  console.log(firebaseConfig);
-  console.log(process.env.projectId);
-  console.log(process.env.NODE_ENV);
-
   ReactDOM.render(
     <React.StrictMode>
       <FirebaseAppProvider firebaseConfig={firebaseConfig}>
