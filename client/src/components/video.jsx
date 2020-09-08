@@ -32,7 +32,14 @@ export default function VideoContainer() {
   let roomId = null;
   const db = useFirestore();
 
+  React.useEffect(() => {
+    document.querySelector("#joinBtn").disabled = true;
+    document.querySelector("#createBtn").disabled = true;
+    document.querySelector("#hangupBtn").disabled = true;
+  }, []);
+
   const createRoom = async () => {
+    console.log("create room");
     document.querySelector("#createBtn").disabled = true;
     document.querySelector("#joinBtn").disabled = true;
     const roomRef = await db.collection("rooms").doc();
@@ -286,7 +293,13 @@ export default function VideoContainer() {
         <span id="currentRoom"></span>
       </div>
       <div>
-        <video ref={localVideoRef} id="localVideo" autoPlay playsInline></video>
+        <video
+          ref={localVideoRef}
+          id="localVideo"
+          autoPlay
+          playsInline
+          muted={true}
+        ></video>
         <video
           ref={remoteVideoRef}
           id="remoteVideo"
@@ -296,7 +309,16 @@ export default function VideoContainer() {
       </div>
 
       <div>
-        <button id="cameraBtn" onClick={openUserMedia}>
+        <button
+          id="cameraBtn"
+          onClick={() => {
+            openUserMedia();
+            document.querySelector("#cameraBtn").disabled = true;
+            document.querySelector("#joinBtn").disabled = false;
+            document.querySelector("#createBtn").disabled = false;
+            document.querySelector("#hangupBtn").disabled = false;
+          }}
+        >
           Start
         </button>
         <button id="createBtn" onClick={createRoom}>
