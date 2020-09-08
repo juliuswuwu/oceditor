@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   console.log(firebaseConfig);
-  console.log(process.env);
+  console.log(process.env.projectId);
   console.log(process.env.NODE_ENV);
 
   ReactDOM.render(

@@ -6,6 +6,8 @@ const port = process.env.PORT || 5000;
 const path = require("path");
 const room = require("./routes/room");
 
+console.log("server");
+console.log(process.env);
 if (process.env.NODE_ENV === "production") {
   app.use(express.static("client/build"));
   app.get("*", (req, res) => {
