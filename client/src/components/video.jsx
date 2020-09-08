@@ -35,7 +35,7 @@ export default function VideoContainer() {
   const createRoom = async () => {
     document.querySelector("#createBtn").disabled = true;
     document.querySelector("#joinBtn").disabled = true;
-    const roomRef = db.collection("rooms").doc();
+    const roomRef = await db.collection("rooms").doc();
 
     console.log("Create PeerConnection with configuration: ", configuration);
     peerConnection = new RTCPeerConnection(configuration);
