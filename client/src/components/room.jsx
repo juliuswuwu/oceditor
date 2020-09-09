@@ -8,6 +8,7 @@ export default function Room(props) {
   // const [video, setVideo] = React.useState(false);
   // const [audio, setAudio] = React.useState(false);
   const [ready, setReady] = React.useState(false);
+  const [localStream, setLocalStream] = React.useState(RTC.localStream);
 
   React.useEffect(() => {
     if (props.location.initiator) {
@@ -24,6 +25,16 @@ export default function Room(props) {
     }
   }, []);
 
+  const turnOnCamera = async () => {
+    await RTC.startVideoTrack();
+    setLocalStream(RTC.localStream);
+  };
+
+  const turnOffCamera = () => {
+    RTC.stopVideoTrack();
+    setLocalStream(RTC.localStream);
+  };
+
   const renderPlatform = () => {
     if (!ready) {
       return <p>joining</p>;
@@ -32,10 +43,12 @@ export default function Room(props) {
       <div>
         <EditorContainer />
         <VideoBox
-          mute={RTC.mute}
-          unmute={RTC.unmute}
-          turnOnCamera={RTC.turnOnCamera}
-          turnOffCamera={RTC.turnOffCamera}
+          mute={RTC.sendMessage}
+          // unmute={RTC.unmute}
+          localStream={localStream}
+          removeStream={RTC.remoteStream}
+          turnOnCamera={turnOnCamera}
+          turnOffCamera={turnOffCamera}
         />
       </div>
     );
