@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./App";
 import * as serviceWorker from "./serviceWorker";
-import { FirebaseAppProvider } from "reactfire";
+import { FirebaseAppProvider, SuspenseWithPerf } from "reactfire";
 
 document.addEventListener("DOMContentLoaded", () => {
   let firebaseConfig;
@@ -16,7 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
   ReactDOM.render(
     <React.StrictMode>
       <FirebaseAppProvider firebaseConfig={firebaseConfig}>
-        <App />
+        <SuspenseWithPerf>
+          <App />
+        </SuspenseWithPerf>
       </FirebaseAppProvider>
     </React.StrictMode>,
     document.getElementById("root")

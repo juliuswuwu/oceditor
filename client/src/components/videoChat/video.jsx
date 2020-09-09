@@ -28,7 +28,6 @@ export default function VideoContainer() {
   let localStream = null;
   let remoteStream = null;
   let peerConnection = null;
-  let roomDialog = null;
   let roomId = null;
   const db = useFirestore();
 
@@ -206,6 +205,14 @@ export default function VideoContainer() {
     }
   };
 
+  const vidOff = () => {
+    const tracks = document.querySelector("#localVideo").srcObject.getTracks();
+    tracks.forEach((track) => {
+      track.stop();
+    });
+    document.querySelector("#localVideo").srcObject = null;
+  };
+
   const openUserMedia = async (e) => {
     const stream = await navigator.mediaDevices.getUserMedia(
       mediaStreamConstraints
@@ -216,7 +223,6 @@ export default function VideoContainer() {
     document.querySelector("#remoteVideo").srcObject = remoteStream;
 
     console.log("Stream:", document.querySelector("#localVideo").srcObject);
-    document.querySelector("#cameraBtn").disabled = true;
     document.querySelector("#joinBtn").disabled = false;
     document.querySelector("#createBtn").disabled = false;
     document.querySelector("#hangupBtn").disabled = false;
@@ -309,16 +315,7 @@ export default function VideoContainer() {
       </div>
 
       <div>
-        <button
-          id="cameraBtn"
-          onClick={() => {
-            openUserMedia();
-            document.querySelector("#cameraBtn").disabled = true;
-            document.querySelector("#joinBtn").disabled = false;
-            document.querySelector("#createBtn").disabled = false;
-            document.querySelector("#hangupBtn").disabled = false;
-          }}
-        >
+        <button id="cameraBtn" onClick={openUserMedia}>
           Start
         </button>
         <button id="createBtn" onClick={createRoom}>
