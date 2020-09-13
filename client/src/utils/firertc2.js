@@ -15,24 +15,23 @@ let joinedTime = null;
 let fieldValue = null;
 const connections = new Map();
 let onreceivestream = null;
-let remoteVideo = null;
 
 const init = (firebaseStore, firebaseFieldValue) => {
   fireStore = firebaseStore;
   fieldValue = firebaseFieldValue;
 };
 
-const _createSinalingChannel = async () => {
+const _createSignalingChannel = async () => {
   try {
-    console.log("create sinaling channel");
-    return await fireStore.collection("sinalingChannels").doc();
+    console.log("create signaling channel");
+    return await fireStore.collection("signalingChannels").doc();
   } catch (error) {
     console.error(error);
   }
 };
 
-const _getSinalingChannel = async (scId) => {
-  return await fireStore.collection("sinalingChannels").doc(scId);
+const _getSignalingChannel = async (scId) => {
+  return await fireStore.collection("signalingChannels").doc(scId);
 };
 
 const _createPeer = async (scRef) => {
@@ -43,15 +42,14 @@ const _createPeer = async (scRef) => {
   );
 
   _listenForPeer(scRef);
-  _listenSinalingMessage(scRef, peer.id);
+  _listenSignalingMessage(scRef, peer.id);
   return peer.id;
 };
 
-const _listenForPeer = (sinalingChannel) => {
-  sinalingChannel.collection("peers").onSnapshot(async (snapshot) => {
+const _listenForPeer = (signalingChannel) => {
+  signalingChannel.collection("peers").onSnapshot(async (snapshot) => {
     let peers = [];
     snapshot.docChanges().forEach(async (change) => {
-      console.log("self id:", selfId);
       if (change.type === "added") {
         let data = change.doc.data();
         const time = Number(data.time.seconds + "" + data.time.nanoseconds);
@@ -68,8 +66,8 @@ const _listenForPeer = (sinalingChannel) => {
   });
 };
 
-const _listenSinalingMessage = (sinalingChannel, peerId) => {
-  sinalingChannel
+const _listenSignalingMessage = (signalingChannel, peerId) => {
+  signalingChannel
     .collection("peers")
     .doc(peerId)
     .collection("remotePeers")
@@ -84,20 +82,17 @@ const _listenSinalingMessage = (sinalingChannel, peerId) => {
     });
 };
 
-const _sendSinalingMessage = async ({ remotePeerId, type, data }) => {
+const _sendSignalingMessage = async ({ remotePeerId, type, data }) => {
   const peerRef = await room
     .collection("peers")
     .doc(remotePeerId)
     .collection("remotePeers")
     .doc(selfId);
   if (type === "description") {
-    console.log("send description:", data);
     peerRef.set({ from: selfId, description: data }, { merge: true });
   }
 
   if (type === "candidate") {
-    console.log("send candidate:", data);
-    // peerRef.set({ candidate: data }, { merge: true });
     peerRef.collection("candidates").add(data);
   }
 };
@@ -160,13 +155,12 @@ const _createConnection = async (romoteId, polite) => {
     try {
       connections[romoteId].makingOffer = true;
       await pc.setLocalDescription();
-
       const msg = {
         remotePeerId: romoteId,
         type: "description",
         data: pc.localDescription.toJSON(),
       };
-      _sendSinalingMessage(msg);
+      _sendSignalingMessage(msg);
     } catch (err) {
       console.error(err);
     } finally {
@@ -190,8 +184,7 @@ const _createConnection = async (romoteId, polite) => {
       type: "candidate",
       data: candidate.toJSON(),
     };
-    console.log(iceMsg);
-    _sendSinalingMessage(iceMsg);
+    _sendSignalingMessage(iceMsg);
   };
   //TODO: above move to another file
 };
@@ -200,38 +193,41 @@ const _gotRemoteSDPInfo = async ({ description, from }) => {
   if (!connections[from]) {
     await _createConnection(from, false);
   }
+  const pc = connections[from].pc;
   if (!connections[from].listenedOnRemoteCandidate) {
-    _listenOnRemoteCandidates(connections[from].pc, from);
+    _listenOnRemoteCandidates(pc, from);
     connections[from].listenedOnRemoteCandidate = true;
     if (localStream) {
       for (const track of localStream.getTracks()) {
-        connections[from].pc.addTrack(track, localStream);
+        pc.addTrack(track, localStream);
       }
     }
   }
   console.log("got remote sdp");
-  connections[from].ignoreOffer = false;
+  console.log("polite", connections[from].polite);
   const offerCollision =
     description.type == "offer" &&
-    (connections[from].makingOffer ||
-      connections[from].pc.signalingState != "stable");
-  connections[from].ignoreOffer = !connections[from].polite && offerCollision;
-  if (connections[from].ignoreOffer) {
-    return;
+    (connections[from].makingOffer || pc.signalingState != "stable");
+
+  if (offerCollision) {
+    if (!connections[from].polite) return;
+    await Promise.all([
+      pc.setLocalDescription({ type: "rollback" }),
+      pc.setRemoteDescription(description),
+    ]);
+  } else {
+    await pc.setRemoteDescription(description);
   }
-  await connections[from].pc.setRemoteDescription(
-    new RTCSessionDescription(description)
-  );
+
   if (description.type == "offer") {
-    const answer = await connections[from].pc.createAnswer();
-    await connections[from].pc.setLocalDescription(answer);
-    // signaler.send({ description: pc.localDescription });
+    // const answer = await pc.createAnswer();
+    await pc.setLocalDescription(await pc.createAnswer());
     const msg = {
       remotePeerId: from,
       type: "description",
-      data: connections[from].pc.localDescription.toJSON(),
+      data: pc.localDescription.toJSON(),
     };
-    _sendSinalingMessage(msg);
+    _sendSignalingMessage(msg);
   }
 };
 
@@ -246,7 +242,7 @@ const _listenOnRemoteCandidates = (pc, remoteId) => {
       snapshot.docChanges().forEach(async (change) => {
         if (change.type === "added") {
           let data = change.doc.data();
-          console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+          console.log(`Got new remote ICE candidate from ${remoteId}`);
           await pc.addIceCandidate(new RTCIceCandidate(data));
         }
       });
@@ -280,13 +276,13 @@ const handleOnClose = () => {
 const handleReceiveMessage = (e) => console.log(e.data);
 
 const createRoom = async () => {
-  room = await _createSinalingChannel();
+  room = await _createSignalingChannel();
   selfId = await _createPeer(room);
   return { id: room.id, peerId: selfId };
 };
 
 const joinRoomById = async (roomId) => {
-  room = await _getSinalingChannel(roomId);
+  room = await _getSignalingChannel(roomId);
   selfId = await _createPeer(room);
   return { id: room.id, peerId: selfId };
 };
@@ -314,10 +310,6 @@ const sendMessage = (remoteId, msg) => {
   } catch (error) {
     console.error(error);
   }
-};
-
-const setRV = (rv) => {
-  remoteVideo = rv;
 };
 
 const onremotestream = (cb) => {
