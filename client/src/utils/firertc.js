@@ -7,7 +7,7 @@ const configuration = {
   iceCandidatePoolSize: 10,
 };
 
-let localStream = new MediaStream();
+const localStream = new MediaStream();
 const remoteStream = new MediaStream();
 let peerConnection = null;
 let roomId = null;
@@ -17,6 +17,13 @@ let videoTrack = null;
 let audioTrack = null;
 let audioSender = null;
 let dataChannel = null;
+let makingOffer = false;
+let polite = null;
+let ignoreOffer = false;
+
+const init = (fireStore) => {
+  db = fireStore;
+};
 
 async function startVideoTrack() {
   console.log("turn on camera");
@@ -49,9 +56,8 @@ function mute() {
   localStream.getAudioTracks()[0].enabled = false;
 }
 
-async function createRoom({ firebaseStore }) {
+async function createRoom() {
   console.log("create room");
-  db = firebaseStore;
   const roomRef = await db.collection("rooms").doc();
 
   console.log("Create PeerConnection with configuration: ", configuration);
@@ -136,8 +142,7 @@ async function createRoom({ firebaseStore }) {
   return roomId;
 }
 
-async function joinRoomById({ firebaseStore, id, cb }) {
-  db = firebaseStore;
+async function joinRoomById({ id, cb }) {
   const roomRef = db.collection("rooms").doc(`${id}`);
   const roomSnapshot = await roomRef.get();
   console.log("Got room:", roomSnapshot.exists);
@@ -223,6 +228,25 @@ function handleReceiveMessage(e) {
 }
 
 function _registerPeerConnectionListeners() {
+  peerConnection.onnegotiationneeded = async () => {
+    // try {
+    //   makingOffer = true;
+    //   await peerConnection.setLocalDescription();
+    //   updateSDP("offer", peerConnection.localDescription);
+    // } catch (err) {
+    //   console.error(err);
+    // } finally {
+    //   makingOffer = false;
+    // }
+    console.log("needed");
+  };
+
+  peerConnection.oniceconnectionstatechange = () => {
+    if (peerConnection.iceConnectionState === "failed") {
+      peerConnection.restartIce();
+    }
+  };
+
   peerConnection.addEventListener("icegatheringstatechange", () => {
     console.log(
       `ICE gathering state changed: ${peerConnection.iceGatheringState}`
@@ -244,11 +268,22 @@ function _registerPeerConnectionListeners() {
   });
 }
 
-function sendMessage(msg) {
+const sendMessage = (msg) => {
   dataChannel.send(msg);
-}
+};
+
+const updateSDP = (type, description) => {
+  const roomWithDescription = {
+    [type]: {
+      type: description.type,
+      sdp: description.sdp,
+    },
+  };
+  return this.roomRef.set(roomWithDescription, { merge: true });
+};
 
 module.exports = {
+  init,
   startVideoTrack,
   stopVideoTrack,
   mute,
