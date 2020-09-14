@@ -188,7 +188,6 @@ const _createConnection = async (romoteId, polite) => {
     _sendSignalingMessage(iceMsg);
   };
 
-  _listenOnRemoteCandidates(pc, romoteId);
   //TODO: above move to another file
 };
 
@@ -212,6 +211,11 @@ const _gotRemoteSDP = async ({ description, from }) => {
   if (!connections[from]) {
     await _createConnection(from, true);
   }
+  if (!connections[from].listenedOnRemoteCandidate) {
+    _listenOnRemoteCandidates(connections[from].pc, from);
+    connections[from].listenedOnRemoteCandidate = true;
+  }
+
   const pc = connections[from].pc;
 
   console.log(`got remote ${description.type} sdp from`, from);
