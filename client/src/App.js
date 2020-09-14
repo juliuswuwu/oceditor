@@ -5,7 +5,7 @@ import Home from "./components/home";
 import Test from "./components/test";
 import { Switch, Route, HashRouter } from "react-router-dom";
 import { useFirestore } from "reactfire";
-const FireRTC = require("./utils/firertc2");
+import FireRTC from "./utils/firertc2";
 
 function App() {
   const db = useFirestore();
@@ -16,7 +16,7 @@ function App() {
     <div className="App">
       <HashRouter>
         <Switch>
-          <Route exact path="/room/:roomId" component={Room} /> 
+          <Route exact path="/room/:roomId" component={Room} />
           <Route path="/" component={Home} />
           {/* <Route path="/" component={Test} />} /> */}
         </Switch>

@@ -1,7 +1,6 @@
 import React from "react";
 import "./test.css";
-
-const FireRTC = require("../utils/firertc2");
+import FireRTC from "../utils/firertc2";
 
 export default function Test(props) {
   const [remoteStreams, setRemoteStream] = React.useState({});

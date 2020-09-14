@@ -411,7 +411,7 @@ const getLocalStream = () => {
   return stream;
 };
 
-module.exports = {
+const FireRTC = {
   init,
   on,
   off,
@@ -423,3 +423,5 @@ module.exports = {
   onRemoteStreamChange,
   getLocalStream,
 };
+
+export default FireRTC;

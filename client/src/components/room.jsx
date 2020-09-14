@@ -2,8 +2,7 @@ import React from "react";
 import "./room.css";
 import EditorContainer from "./editor/editorContainer";
 import VideoBox from "./videoChat/videoBox";
-const FireRTC = require("../utils/firertc2");
-// import FireRTC from "../utils/webrtc";
+import FireRTC from "../utils/firertc2";
 
 export default function Room(props) {
   const [peer, setPeer] = React.useState(null);

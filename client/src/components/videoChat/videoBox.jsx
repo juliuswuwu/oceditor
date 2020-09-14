@@ -1,6 +1,7 @@
 import React from "react";
 import "./videoBox.css";
-const FireRTC = require("../../utils/firertc2");
+import FireRTC from "../../utils/firertc2";
+
 const remoteStreams = {};
 
 export default function VideoBox(props) {
