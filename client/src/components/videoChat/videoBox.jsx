@@ -11,6 +11,7 @@ export default function VideoBox(props) {
   const [, updateState] = React.useState();
   const forceUpdate = React.useCallback(() => updateState({}), []);
   const localVideoRef = React.useRef();
+  const [remoteMuted, setRemoteMuted] = React.useState(true);
 
   React.useEffect(() => {
     FireRTC.onRemoteStreamChange((remoteId, stream) => {
@@ -38,7 +39,7 @@ export default function VideoBox(props) {
         {Object.keys(remoteStreams).map((peerId) => (
           <div key={peerId} className="remote-stream">
             <div>{peerId}</div>
-            <video autoPlay playsInline id={peerId} />
+            <video autoPlay playsInline muted={remoteMuted} id={peerId} />
           </div>
         ))}
       </div>
@@ -49,14 +50,17 @@ export default function VideoBox(props) {
     setShow(!show);
   };
 
+  const toggleRemoteStreamAudio = () => {
+    setRemoteMuted(!remoteMuted);
+  };
+
   const muteUnmute = async () => {
-    localVideoRef.current.srcObject = null;
     if (audio) {
       console.log("mute");
-      localVideoRef.current.srcObject = await FireRTC.mute();
+      await FireRTC.mute();
     } else {
       console.log("unmute");
-      localVideoRef.current.srcObject = await FireRTC.unmute();
+      await FireRTC.unmute();
     }
     setAudio(!audio);
   };
@@ -98,13 +102,10 @@ export default function VideoBox(props) {
       <div id="hided" className={show ? "hide" : ""}>
         <button onClick={toggleVideoWindow}>show</button>
       </div>
-      <button
-        onClick={() => {
-          window.rs = remoteStreams;
-        }}
-      >
-        print
-      </button>
+      {remoteMuted && (
+        <button onClick={toggleRemoteStreamAudio}>unmute remote streams</button>
+      )}
+
       <button onClick={forceUpdate}>refresh</button>
     </div>
   );
