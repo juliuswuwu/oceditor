@@ -4,21 +4,28 @@ import "./test.css";
 const FireRTC = require("../utils/firertc2");
 
 export default function Test(props) {
-  const [remoteStreams, setRemoteStream] = React.useState([]);
+  const [remoteStreams, setRemoteStream] = React.useState({});
   const [, updateState] = React.useState();
   const forceUpdate = React.useCallback(() => updateState({}), []);
 
   React.useEffect(() => {
-    FireRTC.onremotestream((remoteId, stream) => {
-      remoteStreams.push([remoteId, stream]);
+    FireRTC.onRemoteStreamChange((remoteId, stream) => {
+      remoteStreams[remoteId] = stream;
+      console.log("test update", stream.getTracks());
       forceUpdate();
     });
   }, []);
 
   React.useEffect(() => {
-    remoteStreams.forEach(
-      (peer) => (document.getElementById(peer[0]).srcObject = peer[1][0])
-    );
+    Object.keys(remoteStreams).forEach((peerId) => {
+      document.getElementById(peerId).srcObject = null;
+      document.getElementById(peerId).srcObject = remoteStreams[peerId];
+      console.log(
+        "test",
+        remoteStreams[peerId].getTracks().length,
+        remoteStreams[peerId]
+      );
+    });
   });
 
   const on = () => {
@@ -65,10 +72,10 @@ export default function Test(props) {
   const renderRemoteStream = () => {
     return (
       <div>
-        {remoteStreams.map((peer) => (
+        {Object.keys(remoteStreams).map((peerId) => (
           <div>
-            {peer[0]}
-            <video autoPlay playsInline id={peer[0]} />
+            <div>{peerId}</div>
+            <video autoPlay playsInline id={peerId} />
           </div>
         ))}
       </div>
@@ -84,10 +91,11 @@ export default function Test(props) {
       </div>
       <div>
         <button onClick={FireRTC.on}>on</button>
-        <button onClick={off}>off</button>
-        <button onClick={mute}>mute</button>
-        <button onClick={unmute}>unmute</button>
+        <button onClick={FireRTC.off}>off</button>
+        <button onClick={FireRTC.mute}>mute</button>
+        <button onClick={FireRTC.unmute}>unmute</button>
         <button onClick={openDataChannel}>open dc</button>
+        <button onClick={forceUpdate}>force update</button>
         <button onClick={call}>call</button>
         <div>
           <input type="text" id="scId" />

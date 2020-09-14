@@ -7,7 +7,9 @@ const configuration = {
   iceCandidatePoolSize: 10,
 };
 
-let localStream = null;
+const localStream = new MediaStream();
+let localVideo = null;
+let localAudio = null;
 let fireStore = null;
 let room = null;
 let selfId = null;
@@ -119,11 +121,8 @@ const _createConnection = async (romoteId, polite) => {
   //TODO: below move to another file
   _registerPeerConnectionListeners(pc);
   pc.ontrack = ({ track, streams }) => {
-    // remoteVideo.srcObject = null;
-    // remoteVideo.srcObject = streams[0];
-    // remoteStream.addTrack(track);
     if (onreceivestream) {
-      onreceivestream(romoteId, streams);
+      onreceivestream(romoteId, streams[0]);
     }
   };
 
@@ -136,10 +135,14 @@ const _createConnection = async (romoteId, polite) => {
     // dataChannel.onclose = handleReceiveChannelStatusChange;
   };
 
-  connections[romoteId].dataChannel = pc.createDataChannel("dc");
-  connections[romoteId].dataChannel.onmessage = handleReceiveMessage;
-  connections[romoteId].dataChannel.onopen = handleOnOpen;
-  connections[romoteId].dataChannel.onclose = handleOnClose;
+  //TODO: remove creating datachannel in createConnection
+  if (polite) {
+    connections[romoteId].dataChannel = pc.createDataChannel("dc");
+    connections[romoteId].dataChannel.onmessage = handleReceiveMessage;
+    connections[romoteId].dataChannel.onopen = handleOnOpen;
+    connections[romoteId].dataChannel.onclose = handleOnClose;
+  }
+
   //   try {
   //     if (!localStream)
   //       localStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -189,6 +192,24 @@ const _createConnection = async (romoteId, polite) => {
   //TODO: above move to another file
 };
 
+const addLocalTracksToPC = (firertcConnection) => {
+  if (!firertcConnection.videoSender && hasVideoOn()) {
+    const videoTrack = localStream.getVideoTracks()[0];
+    firertcConnection.videoSender = firertcConnection.pc.addTrack(
+      videoTrack,
+      localStream
+    );
+  }
+
+  if (!firertcConnection.audioSender && hasAudioOn()) {
+    const audioTrack = localStream.getAudioTracks()[0];
+    firertcConnection.audioSender = firertcConnection.pc.addTrack(
+      audioTrack,
+      localStream
+    );
+  }
+};
+
 const _gotRemoteSDPInfo = async ({ description, from }) => {
   if (!connections[from]) {
     await _createConnection(from, false);
@@ -197,10 +218,8 @@ const _gotRemoteSDPInfo = async ({ description, from }) => {
   if (!connections[from].listenedOnRemoteCandidate) {
     _listenOnRemoteCandidates(pc, from);
     connections[from].listenedOnRemoteCandidate = true;
-    if (localStream) {
-      for (const track of localStream.getTracks()) {
-        pc.addTrack(track, localStream);
-      }
+    if (description.type === "offer") {
+      addLocalTracksToPC(connections[from]);
     }
   }
   console.log("got remote sdp");
@@ -290,17 +309,145 @@ const joinRoomById = async (roomId) => {
 const leaveRoom = () => {};
 
 const on = async () => {
-  try {
-    if (!localStream)
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-    for (const track of localStream.getTracks()) {
-      for (const peer in connections) {
-        connections[peer].pc.addTrack(track, localStream);
+  if (!hasVideoOn()) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (
+        localStream &&
+        localStream.getAudioTracks()[0] &&
+        localStream.getAudioTracks()[0].readyState === "live"
+      ) {
+        stream.addTrack(localStream.getAudioTracks()[0]);
       }
+      localStream = stream;
+      console.log(`local has ${localStream.getTracks().length} tracks`);
+      for (const track of localStream.getTracks()) {
+        for (const peer in connections) {
+          if (connections[peer].videoSender)
+            connections[peer].videoSender = connections[peer].pc.removeTrack(
+              connections[peer].videoSender
+            );
+          if (connections[peer].audioSender)
+            connections[peer].audioSender = connections[peer].pc.removeTrack(
+              connections[peer].audioSender
+            );
+          if (track.kind === "video") {
+            connections[peer].videoSender = connections[peer].pc.addTrack(
+              track,
+              localStream
+            );
+          } else {
+            connections[peer].audioSender = connections[peer].pc.addTrack(
+              track,
+              localStream
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+};
+
+const hasVideoOn = () => {
+  if (
+    localStream &&
+    localStream.getVideoTracks()[0] &&
+    localStream.getVideoTracks()[0].readyState === "live"
+  )
+    return true;
+  return false;
+};
+
+const hasAudioOn = () => {
+  if (
+    localStream &&
+    localStream.getAudioTracks()[0] &&
+    localStream.getAudioTracks()[0].readyState === "live"
+  )
+    return true;
+  return false;
+};
+
+const off = async () => {
+  try {
+    if (!localStream) return;
+    localStream.getVideoTracks().forEach((aTrack) => aTrack.stop());
+    for (const peer in connections) {
+      if (connections[peer].videoSender)
+        connections[peer].videoSender = connections[peer].pc.removeTrack(
+          connections[peer].videoSender
+        );
     }
   } catch (err) {
     console.error(err);
+  }
+};
+
+const mute = () => {
+  try {
+    if (!localStream) return;
+    localStream.getAudioTracks().forEach((aTrack) => aTrack.stop());
+    for (const peer in connections) {
+      if (connections[peer].audioSender)
+        connections[peer].audioSender = connections[peer].pc.removeTrack(
+          connections[peer].audioSender
+        );
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const unmute = async () => {
+  if (!hasAudioOn()) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (hasVideoOn()) {
+        stream.addTrack(localStream.getVideoTracks()[0]);
+      }
+      localStream = stream;
+      console.log(`local has ${localStream.getTracks().length} tracks`);
+      for (const track of localStream.getTracks()) {
+        for (const peer in connections) {
+          if (connections[peer].videoSender)
+            connections[peer].videoSender = connections[peer].pc.removeTrack(
+              connections[peer].videoSender
+            );
+          if (connections[peer].audioSender)
+            connections[peer].audioSender = connections[peer].pc.removeTrack(
+              connections[peer].audioSender
+            );
+          if (track.kind === "video") {
+            connections[peer].videoSender = connections[peer].pc.addTrack(
+              track,
+              localStream
+            );
+          } else {
+            connections[peer].audioSender = connections[peer].pc.addTrack(
+              track,
+              localStream
+            );
+          }
+          //   if (track.kind === "video") {
+          //     console.log("add video .........");
+          //     connections[peer].videoSender = connections[peer].pc.addTrack(
+          //       track,
+          //       localStream
+          //     );
+          //   } else {
+          //     console.log("add audio .........");
+          //     connections[peer].audioSender = connections[peer].pc.addTrack(
+          //       track,
+          //       localStream
+          //     );
+          //   }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 };
 
@@ -312,17 +459,25 @@ const sendMessage = (remoteId, msg) => {
   }
 };
 
-const onremotestream = (cb) => {
+const onRemoteStreamChange = (cb) => {
   onreceivestream = cb;
+};
+
+const getLocalStream = () => {
+  return localStream;
 };
 
 module.exports = {
   init,
   on,
+  off,
+  mute,
+  unmute,
   createRoom,
   joinRoomById,
   sendMessage,
-  onremotestream,
+  onRemoteStreamChange,
+  getLocalStream,
   localStream,
   connections,
 };
