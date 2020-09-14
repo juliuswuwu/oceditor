@@ -289,8 +289,7 @@ const handleOnClose = () => {
   console.log("dataChannel closed");
 };
 const handleReceiveMessage = (e) => {
-  console.log(e.data);
-  window.msg = e.data;
+  console.log("receive new message", e.data);
   onremotemessage && onremotemessage(e.data);
 };
 

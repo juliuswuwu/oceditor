@@ -22,6 +22,8 @@ export default function VideoBox(props) {
       };
       forceUpdate();
     });
+
+    FireRTC.onmessage = (msg) => console.log(msg);
   }, []);
 
   React.useEffect(() => {
