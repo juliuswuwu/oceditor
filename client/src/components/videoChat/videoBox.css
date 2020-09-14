@@ -1,9 +1,9 @@
 #videoBox {
-  width: 200px;
-  height: 400px;
+  width: 400px;
+  height: 600px;
   position: absolute;
   border: 1px solid black;
-  right: 0;
+  left: 100px;
   top: 0;
 }
 

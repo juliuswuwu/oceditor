@@ -16,13 +16,9 @@ function App() {
     <div className="App">
       <HashRouter>
         <Switch>
-          {/* <Route
-            exact
-            path="/room/:roomId"
-            render={(props) => <Room {...props} db={db} />}
-          />
-          <Route path="/" render={(props) => <Home {...props} db={db} />} /> */}
-          <Route path="/" render={(props) => <Test {...props} db={db} />} />
+          <Route exact path="/room/:roomId" component={Room} /> 
+          <Route path="/" component={Home} />
+          {/* <Route path="/" component={Test} />} /> */}
         </Switch>
       </HashRouter>
     </div>

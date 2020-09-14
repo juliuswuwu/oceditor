@@ -3,7 +3,7 @@ import "./home.css";
 import { Redirect } from "react-router-dom";
 // import FireRTC from "../utils/webrtc";
 
-const FireRTC = require("../utils/firertc");
+const FireRTC = require("../utils/firertc2");
 
 // export default function Home(props) {
 //   // window.location.hash = `/`;
@@ -41,29 +41,58 @@ const FireRTC = require("../utils/firertc");
 //   );
 // }
 
-export default function Home(props) {
-  // window.location.hash = `/`;
-  const [roomId, setRoomId] = React.useState(null);
+// export default function Home(props) {
+//   window.location.hash = `/`;
+//   const [roomId, setRoomId] = React.useState(null);
+
+//   const redirectToRoomWhenReady = () => {
+//     if (!roomId) return null;
+//     return (
+//       <Redirect
+//         to={{
+//           pathname: `/room/${roomId}`,
+//           initiator: true,
+//         }}
+//       />
+//     );
+//   };
+
+//   const initiateRoom = async () => {
+//     const config = {
+//       firebaseStore: props.db,
+//     };
+//     FireRTC.init(props.db);
+//     const roomId = await FireRTC.createRoom(config);
+//     setRoomId(roomId);
+//   };
+
+//   return (
+//     <div>
+//       <button onClick={initiateRoom}>New</button>
+//       {redirectToRoomWhenReady()}
+//     </div>
+//   );
+// }
+
+export default function Home() {
+  window.location.hash = `/`;
+  const [room, setRoom] = React.useState(null);
 
   const redirectToRoomWhenReady = () => {
-    if (!roomId) return null;
+    if (!room) return null;
     return (
       <Redirect
         to={{
-          pathname: `/room/${roomId}`,
-          initiator: true,
+          pathname: `/room/${room.id}`,
+          initiator: room.peerId,
         }}
       />
     );
   };
 
   const initiateRoom = async () => {
-    const config = {
-      firebaseStore: props.db,
-    };
-    FireRTC.init(props.db);
-    const roomId = await FireRTC.createRoom(config);
-    setRoomId(roomId);
+    const room = await FireRTC.createRoom();
+    setRoom(room);
   };
 
   return (

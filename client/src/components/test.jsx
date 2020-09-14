@@ -28,20 +28,28 @@ export default function Test(props) {
     });
   });
 
-  const on = () => {
+  const on = async () => {
     console.log("turn on camera");
+    document.getElementById("localVideo").srcObject = null;
+    document.getElementById("localVideo").srcObject = await FireRTC.on();
   };
 
   const off = () => {
     console.log("turn off camera");
+    document.getElementById("localVideo").srcObject = null;
+    document.getElementById("localVideo").srcObject = FireRTC.off();
   };
 
   const mute = () => {
     console.log("mute");
+    document.getElementById("localVideo").srcObject = null;
+    document.getElementById("localVideo").srcObject = FireRTC.mute();
   };
 
-  const unmute = () => {
+  const unmute = async () => {
     console.log("unmute");
+    document.getElementById("localVideo").srcObject = null;
+    document.getElementById("localVideo").srcObject = await FireRTC.unmute();
   };
 
   const call = async () => {
@@ -73,7 +81,7 @@ export default function Test(props) {
     return (
       <div>
         {Object.keys(remoteStreams).map((peerId) => (
-          <div>
+          <div key={peerId}>
             <div>{peerId}</div>
             <video autoPlay playsInline id={peerId} />
           </div>
@@ -86,14 +94,14 @@ export default function Test(props) {
     <div>
       <div id="peerId"></div>
       <div>
-        <video id="localV" autoPlay playsInline muted={true}></video>
+        <video id="localVideo" autoPlay playsInline muted={true}></video>
         {renderRemoteStream()}
       </div>
       <div>
-        <button onClick={FireRTC.on}>on</button>
-        <button onClick={FireRTC.off}>off</button>
-        <button onClick={FireRTC.mute}>mute</button>
-        <button onClick={FireRTC.unmute}>unmute</button>
+        <button onClick={on}>on</button>
+        <button onClick={off}>off</button>
+        <button onClick={mute}>mute</button>
+        <button onClick={unmute}>unmute</button>
         <button onClick={openDataChannel}>open dc</button>
         <button onClick={forceUpdate}>force update</button>
         <button onClick={call}>call</button>
