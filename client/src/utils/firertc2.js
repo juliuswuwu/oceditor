@@ -17,6 +17,7 @@ let joinedTime = null;
 let fieldValue = null;
 const connections = new Map();
 let onreceivestream = null;
+let onremotemessage = null;
 
 const init = (firebaseStore, firebaseFieldValue) => {
   fireStore = firebaseStore;
@@ -77,8 +78,7 @@ const _listenSignalingMessage = (signalingChannel, peerId) => {
       snapshot.docChanges().forEach(async (change) => {
         if (change.type === "added" || change.type === "modified") {
           let data = change.doc.data();
-          console.log(`got remote SDP from: ${data.from}`);
-          _gotRemoteSDPInfo(data);
+          _gotRemoteSDP(data);
         }
       });
     });
@@ -91,6 +91,7 @@ const _sendSignalingMessage = async ({ remotePeerId, type, data }) => {
     .collection("remotePeers")
     .doc(selfId);
   if (type === "description") {
+    console.log(`send ${data.type} sdp to`, remotePeerId);
     peerRef.set({ from: selfId, description: data }, { merge: true });
   }
 
@@ -101,7 +102,7 @@ const _sendSignalingMessage = async ({ remotePeerId, type, data }) => {
 
 const _createConnections = (peers) => {
   peers.forEach(async (peer) => {
-    _createConnection(peer.id, true);
+    _createConnection(peer.id, false);
   });
 };
 
@@ -116,15 +117,27 @@ const _createConnection = async (romoteId, polite) => {
     pc,
     remoteStream,
     listenedOnRemoteCandidate: false,
+    newConnection: true,
   };
+
+  addLocalTracksToPC(connections[romoteId]);
 
   //TODO: below move to another file
   _registerPeerConnectionListeners(pc);
+
   pc.ontrack = ({ track, streams }) => {
     if (onreceivestream) {
       onreceivestream(romoteId, streams[0]);
     }
   };
+
+  // TODO: remove creating datachannel in createConnection
+  if (!polite) {
+    connections[romoteId].dataChannel = pc.createDataChannel("dc");
+    connections[romoteId].dataChannel.onmessage = handleReceiveMessage;
+    connections[romoteId].dataChannel.onopen = handleOnOpen;
+    connections[romoteId].dataChannel.onclose = handleOnClose;
+  }
 
   pc.ondatachannel = (e) => {
     connections[romoteId].dataChannel = e.channel;
@@ -135,26 +148,11 @@ const _createConnection = async (romoteId, polite) => {
     // dataChannel.onclose = handleReceiveChannelStatusChange;
   };
 
-  //TODO: remove creating datachannel in createConnection
-  if (polite) {
-    connections[romoteId].dataChannel = pc.createDataChannel("dc");
-    connections[romoteId].dataChannel.onmessage = handleReceiveMessage;
-    connections[romoteId].dataChannel.onopen = handleOnOpen;
-    connections[romoteId].dataChannel.onclose = handleOnClose;
-  }
-
-  //   try {
-  //     if (!localStream)
-  //       localStream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-  //     for (const track of localStream.getTracks()) {
-  //       pc.addTrack(track, localStream);
-  //     }
-  //   } catch (err) {
-  //     console.error(err);
-  //   }
-
-  pc.onnegotiationneeded = async () => {
+  pc.onnegotiationneeded = async (e) => {
+    if (connections[romoteId].newConnection && polite) {
+      connections[romoteId].newConnection = false;
+      return;
+    }
     try {
       connections[romoteId].makingOffer = true;
       await pc.setLocalDescription();
@@ -172,7 +170,7 @@ const _createConnection = async (romoteId, polite) => {
   };
 
   pc.oniceconnectionstatechange = () => {
-    if (pc.iceConnectionState === "failed") {
+    if (pc.iceConnectionState === "failed" && !polite) {
       pc.restartIce();
     }
   };
@@ -189,6 +187,8 @@ const _createConnection = async (romoteId, polite) => {
     };
     _sendSignalingMessage(iceMsg);
   };
+
+  _listenOnRemoteCandidates(pc, romoteId);
   //TODO: above move to another file
 };
 
@@ -206,36 +206,15 @@ const addLocalTracksToPC = (firertcConnection) => {
       localStream
     );
   }
-  // if (!firertcConnection.videoSender && hasVideoOn()) {
-  //   const videoTrack = localStream.getVideoTracks()[0];
-  //   firertcConnection.videoSender = firertcConnection.pc.addTrack(
-  //     videoTrack,
-  //     localStream
-  //   );
-  // }
-
-  // if (!firertcConnection.audioSender && hasAudioOn()) {
-  //   const audioTrack = localStream.getAudioTracks()[0];
-  //   firertcConnection.audioSender = firertcConnection.pc.addTrack(
-  //     audioTrack,
-  //     localStream
-  //   );
-  // }
 };
 
-const _gotRemoteSDPInfo = async ({ description, from }) => {
+const _gotRemoteSDP = async ({ description, from }) => {
   if (!connections[from]) {
-    await _createConnection(from, false);
+    await _createConnection(from, true);
   }
   const pc = connections[from].pc;
-  if (!connections[from].listenedOnRemoteCandidate) {
-    _listenOnRemoteCandidates(pc, from);
-    connections[from].listenedOnRemoteCandidate = true;
-    if (description.type === "offer") {
-      addLocalTracksToPC(connections[from]);
-    }
-  }
-  console.log("got remote sdp");
+
+  console.log(`got remote ${description.type} sdp from`, from);
   console.log("polite", connections[from].polite);
   const offerCollision =
     description.type == "offer" &&
@@ -305,7 +284,11 @@ const handleOnOpen = () => {
 const handleOnClose = () => {
   console.log("dataChannel closed");
 };
-const handleReceiveMessage = (e) => console.log(e.data);
+const handleReceiveMessage = (e) => {
+  console.log(e.data);
+  window.msg = e.data;
+  onremotemessage && onremotemessage(e.data);
+};
 
 const createRoom = async () => {
   room = await _createSignalingChannel();
@@ -329,6 +312,7 @@ const on = async () => {
     localVideo = stream.getVideoTracks()[0];
 
     for (const peer in connections) {
+      console.log("adding videos ........");
       connections[peer].videoSender = connections[peer].pc.addTrack(
         localVideo,
         localStream
@@ -400,8 +384,30 @@ const sendMessage = (remoteId, msg) => {
   }
 };
 
+const broadcast = (msg) => {
+  try {
+    for (const peerId in connections) {
+      //TODO: check if dataChannel is opened
+      if (
+        connections[peerId].dataChannel &&
+        connections[peerId].dataChannel.readyState === "open"
+      ) {
+        connections[peerId].dataChannel.send(
+          JSON.stringify({ from: selfId, msg })
+        );
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 const onRemoteStreamChange = (cb) => {
   onreceivestream = cb;
+};
+
+const onmessage = (cb) => {
+  onremotemessage = cb;
 };
 
 const getLocalStream = () => {
@@ -419,8 +425,9 @@ const FireRTC = {
   unmute,
   createRoom,
   joinRoomById,
-  sendMessage,
+  broadcast,
   onRemoteStreamChange,
+  onmessage,
   getLocalStream,
 };
 

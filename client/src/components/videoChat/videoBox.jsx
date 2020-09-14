@@ -11,6 +11,7 @@ export default function VideoBox(props) {
   const [, updateState] = React.useState();
   const forceUpdate = React.useCallback(() => updateState({}), []);
   const localVideoRef = React.useRef();
+  const msgRef = React.useRef();
   const [remoteMuted, setRemoteMuted] = React.useState(true);
 
   React.useEffect(() => {
@@ -77,6 +78,14 @@ export default function VideoBox(props) {
     setVideo(!video);
   };
 
+  const broadcast = () => {
+    const msg = msgRef.current.value;
+    if (msg !== "") {
+      FireRTC.broadcast(msg);
+      msgRef.current.value = "";
+    }
+  };
+
   return (
     <div id="videoBox">
       <div id="content" className={show ? "" : "hide"}>
@@ -106,7 +115,8 @@ export default function VideoBox(props) {
         <button onClick={toggleRemoteStreamAudio}>unmute remote streams</button>
       )}
 
-      <button onClick={forceUpdate}>refresh</button>
+      <button onClick={broadcast}>broadcast</button>
+      <input ref={msgRef} type="text" />
     </div>
   );
 }
