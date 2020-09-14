@@ -3,6 +3,7 @@ import "./videoBox.css";
 import FireRTC from "../../utils/firertc2";
 
 const remoteStreams = {};
+const msgs = [];
 
 export default function VideoBox(props) {
   const [show, setShow] = React.useState(true);
@@ -11,7 +12,7 @@ export default function VideoBox(props) {
   const [, updateState] = React.useState();
   const forceUpdate = React.useCallback(() => updateState({}), []);
   const localVideoRef = React.useRef();
-  const msgRef = React.useRef();
+  const msgInputRef = React.useRef();
   const [remoteMuted, setRemoteMuted] = React.useState(true);
 
   React.useEffect(() => {
@@ -23,7 +24,10 @@ export default function VideoBox(props) {
       forceUpdate();
     });
 
-    FireRTC.onmessage = (msg) => console.log(msg);
+    FireRTC.onmessage((msg) => {
+      msgs.push(JSON.parse(msg));
+      forceUpdate();
+    });
   }, []);
 
   React.useEffect(() => {
@@ -45,6 +49,18 @@ export default function VideoBox(props) {
             <video autoPlay playsInline muted={remoteMuted} id={peerId} />
           </div>
         ))}
+      </div>
+    );
+  };
+
+  const renderMessages = () => {
+    return (
+      <div>
+        <ul>
+          {msgs.map(({from, msg}) => (
+            <li key={from}>{`${from}: ${msg}`}</li>
+          ))}
+        </ul>
       </div>
     );
   };
@@ -81,10 +97,10 @@ export default function VideoBox(props) {
   };
 
   const broadcast = () => {
-    const msg = msgRef.current.value;
+    const msg = msgInputRef.current.value;
     if (msg !== "") {
       FireRTC.broadcast(msg);
-      msgRef.current.value = "";
+      msgInputRef.current.value = "";
     }
   };
 
@@ -116,9 +132,10 @@ export default function VideoBox(props) {
       {remoteMuted && (
         <button onClick={toggleRemoteStreamAudio}>unmute remote streams</button>
       )}
-
+      <br />
+      <input ref={msgInputRef} type="text" />
       <button onClick={broadcast}>broadcast</button>
-      <input ref={msgRef} type="text" />
+      {renderMessages()}
     </div>
   );
 }
