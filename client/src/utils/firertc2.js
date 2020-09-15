@@ -216,6 +216,10 @@ const _gotRemoteSDP = async ({ description, from }) => {
   if (!connections[from]) {
     await _createConnection(from, true);
   }
+  if (!connections[from].listenedOnRemoteCandidate) {
+    _listenOnRemoteCandidates(connections[from].pc, from);
+    connections[from].listenedOnRemoteCandidate = true;
+  }
 
   const pc = connections[from].pc;
 
@@ -235,11 +239,6 @@ const _gotRemoteSDP = async ({ description, from }) => {
     await pc.setRemoteDescription(description);
   }
 
-  if (!connections[from].listenedOnRemoteCandidate) {
-    _listenOnRemoteCandidates(connections[from].pc, from);
-    connections[from].listenedOnRemoteCandidate = true;
-  }
-
   if (description.type == "offer") {
     // const answer = await pc.createAnswer();
     await pc.setLocalDescription(await pc.createAnswer());
@@ -250,6 +249,8 @@ const _gotRemoteSDP = async ({ description, from }) => {
     };
     _sendSignalingMessage(msg);
   }
+
+  connections[from].newConnection = false;
 };
 
 const _listenOnRemoteCandidates = (pc, remoteId) => {
