@@ -53,8 +53,8 @@ const _listenForPeer = (signalingChannel) => {
   signalingChannel.collection("peers").onSnapshot(async (snapshot) => {
     let peers = [];
     snapshot.docChanges().forEach(async (change) => {
+      let data = change.doc.data();
       if (change.type === "added") {
-        let data = change.doc.data();
         const time = Number(data.time.seconds + "" + data.time.nanoseconds);
         if (selfId === data.id) {
           joinedTime = time;
@@ -62,6 +62,11 @@ const _listenForPeer = (signalingChannel) => {
           peers.push({ id: data.id, time: time });
         }
         console.log(`got new peer: ${JSON.stringify(data)}`);
+      }
+
+      if (change.type === "removed") {
+        console.log(`a peer left: ${data.id}`);
+        connections[data.id].close();
       }
     });
     peers = peers.filter((peer) => peer.time < joinedTime);
@@ -123,7 +128,7 @@ const _createConnection = async (romoteId, polite) => {
   addLocalTracksToPC(connections[romoteId]);
 
   //TODO: below move to another file
-  _registerPeerConnectionListeners(pc);
+  _registerPeerConnectionListeners({ pc, id: romoteId });
 
   pc.ontrack = ({ track, streams }) => {
     if (onreceivestream) {
@@ -264,13 +269,16 @@ const _listenOnRemoteCandidates = (pc, remoteId) => {
     });
 };
 
-function _registerPeerConnectionListeners(pc) {
+function _registerPeerConnectionListeners({ pc, id }) {
   pc.addEventListener("icegatheringstatechange", () => {
     console.log(`ICE gathering state changed: ${pc.iceGatheringState}`);
   });
 
   pc.addEventListener("connectionstatechange", () => {
     console.log(`Connection state change: ${pc.connectionState}`);
+    if (pc.connectionState === "close") {
+      delete connections[id];
+    }
   });
 
   pc.addEventListener("signalingstatechange", () => {
@@ -305,7 +313,19 @@ const joinRoomById = async (roomId) => {
   return selfId;
 };
 
-const leaveRoom = () => {};
+const _removePeerFromSignalingChannel = async (peerId) => {
+  try {
+    if (peerId) await room.collection("peers").doc(peerId).delete();
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const leaveRoom = () => {
+  if (!selfId) return;
+  _removePeerFromSignalingChannel(selfId);
+  Object.values(connections).forEach(({ pc }) => pc.close());
+};
 
 const on = async () => {
   if (localVideo) return;
@@ -428,6 +448,7 @@ const FireRTC = {
   unmute,
   createRoom,
   joinRoomById,
+  leaveRoom,
   broadcast,
   onRemoteStreamChange,
   onmessage,
