@@ -9,6 +9,7 @@ export default function VideoBox(props) {
   const [show, setShow] = React.useState(true);
   const [video, setVideo] = React.useState(false);
   const [audio, setAudio] = React.useState(false);
+  const [streamType, setStreamType] = React.useState("camera");
   const [, updateState] = React.useState();
   const forceUpdate = React.useCallback(() => updateState({}), []);
   const localVideoRef = React.useRef();
@@ -57,7 +58,7 @@ export default function VideoBox(props) {
     return (
       <div>
         <ul>
-          {msgs.map(({from, msg}) => (
+          {msgs.map(({ from, msg }) => (
             <li key={from}>{`${from}: ${msg}`}</li>
           ))}
         </ul>
@@ -67,6 +68,10 @@ export default function VideoBox(props) {
 
   const toggleVideoWindow = () => {
     setShow(!show);
+  };
+
+  const selectStreamType = (e) => {
+    setStreamType(e.target.value);
   };
 
   const toggleRemoteStreamAudio = () => {
@@ -91,7 +96,7 @@ export default function VideoBox(props) {
       localVideoRef.current.srcObject = await FireRTC.off();
     } else {
       console.log("turn on camera");
-      localVideoRef.current.srcObject = await FireRTC.on();
+      localVideoRef.current.srcObject = await FireRTC.on(streamType);
     }
     setVideo(!video);
   };
@@ -116,11 +121,31 @@ export default function VideoBox(props) {
         />
         <div>{renderRemoteStream()}</div>
         <div id="stream-controllers">
+          <div onChange={selectStreamType}>
+            <input
+              type="radio"
+              id="camera"
+              name="stream-type"
+              value="camera"
+              checked={streamType === "camera"}
+            />
+            camera
+            <br />
+            <input
+              type="radio"
+              id="screen"
+              name="stream-type"
+              value="screen"
+              checked={streamType === "screen"}
+            />
+            screen
+          </div>
+          <br />
           <button id="audioBtn" onClick={muteUnmute}>
             {audio ? "mute" : "unmute"}
           </button>
           <button id="videoBtn" onClick={turnOnOffCamera}>
-            {video ? "turn off camera" : "turn on camera"}
+            {video ? `turn off ${streamType}` : `turn on ${streamType}`}
           </button>
           <br />
           <button onClick={toggleVideoWindow}>minimize</button>

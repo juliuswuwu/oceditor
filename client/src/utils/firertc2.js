@@ -332,11 +332,20 @@ const leaveRoom = () => {
   Object.values(connections).forEach(({ pc }) => pc.close());
 };
 
-const on = async () => {
+const on = async (type) => {
   if (localVideo) return;
   console.log("turn on video");
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    let stream;
+    if (type === "screen") {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      //TODO: pass in a cb to handle this
+      stream.getVideoTracks()[0].onended = async () => {
+        await off();
+      };
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    }
     localVideo = stream.getVideoTracks()[0];
 
     for (const peer in connections) {
