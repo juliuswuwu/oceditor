@@ -190,7 +190,10 @@ const _createConnection = async (romoteId, polite) => {
       type: "candidate",
       data: candidate.toJSON(),
     };
-    _sendSignalingMessage(iceMsg);
+    //TODO: need to ensure sdp is sent befere candidate
+    setTimeout(() => {
+      _sendSignalingMessage(iceMsg);
+    }, 1000);
   };
 
   //TODO: above move to another file
