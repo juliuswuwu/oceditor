@@ -10,7 +10,12 @@ import FireRTC from "./utils/firertc2";
 function App() {
   const db = useFirestore();
   const fieldValue = useFirestore.FieldValue;
-  FireRTC.init(db, fieldValue);
+  const config = {
+    firebaseStore: db,
+    firebaseFieldValue: fieldValue,
+    dataChannel: true,
+  };
+  FireRTC.init(config);
   console.log("App");
   return (
     <div className="App">

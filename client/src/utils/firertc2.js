@@ -19,7 +19,7 @@ const connections = new Map();
 let onreceivestream = null;
 let onremotemessage = null;
 
-const init = (firebaseStore, firebaseFieldValue) => {
+const init = ({ firebaseStore, firebaseFieldValue }) => {
   fireStore = firebaseStore;
   fieldValue = firebaseFieldValue;
 };
@@ -216,10 +216,6 @@ const _gotRemoteSDP = async ({ description, from }) => {
   if (!connections[from]) {
     await _createConnection(from, true);
   }
-  if (!connections[from].listenedOnRemoteCandidate) {
-    _listenOnRemoteCandidates(connections[from].pc, from);
-    connections[from].listenedOnRemoteCandidate = true;
-  }
 
   const pc = connections[from].pc;
 
@@ -237,6 +233,11 @@ const _gotRemoteSDP = async ({ description, from }) => {
     ]);
   } else {
     await pc.setRemoteDescription(description);
+  }
+
+  if (!connections[from].listenedOnRemoteCandidate) {
+    _listenOnRemoteCandidates(connections[from].pc, from);
+    connections[from].listenedOnRemoteCandidate = true;
   }
 
   if (description.type == "offer") {
